@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Homework for Life</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✍️</text></svg>" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="lock">
+  <form class="lockcard" id="lockForm">
+    <div class="emoji">✍🏼</div>
+    <h2>Homework for Life</h2>
+    <p>This journal is encrypted. Enter the passcode to unlock.</p>
+    <input id="passInput" type="password" autocomplete="current-password" placeholder="Passcode" autofocus />
+    <button type="submit">Unlock</button>
+    <div class="err" id="lockErr"></div>
+  </form>
+</div>
+
+<div class="wrap">
+  <header class="site">
+    <h1>✍🏼 Homework for Life</h1>
+    <span class="sub" id="rangeSub"></span>
+    <span class="spacer"></span>
+    <button class="iconbtn" id="themeBtn" title="Toggle light/dark">◐ Theme</button>
+    <button class="iconbtn" id="lockBtn" style="display:none" title="Lock the journal">🔒 Lock</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-panel="panel-raw">Raw Data</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="panel-summary">Monthly Summary</button>
+    <button class="tab" role="tab" aria-selected="false" data-panel="panel-analytics">Analytics</button>
+  </nav>
+
+  <section id="panel-raw" class="panel active" role="tabpanel">
+    <div class="toolbar">
+      <input id="rawSearch" type="search" placeholder="Search stories or themes…" />
+      <span class="sval" id="rawCount"></span>
+    </div>
+    <div id="rawList"></div>
+  </section>
+
+  <section id="panel-summary" class="panel" role="tabpanel">
+    <div class="sumbar">
+      <label for="monthSel">Month</label>
+      <select id="monthSel"></select>
+    </div>
+    <div id="sumBody"></div>
+  </section>
+
+  <section id="panel-analytics" class="panel" role="tabpanel">
+    <div class="kpis" id="kpis"></div>
+    <div class="chartgrid">
+      <div class="card wide">
+        <h4>Sentiment over time</h4>
+        <p class="desc">Daily entries (dots) with a 7-day rolling average (line). Hover for the story behind each day.</p>
+        <div id="chSent"></div>
+        <div class="legend">
+          <span class="li"><span class="sw" style="background:var(--pos)"></span>Positive day</span>
+          <span class="li"><span class="sw" style="background:var(--neu)"></span>Neutral day</span>
+          <span class="li"><span class="sw" style="background:var(--neg)"></span>Negative day</span>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Theme frequency</h4>
+        <p class="desc">How often each theme appears across all entries (entries can carry several themes).</p>
+        <div id="chThemes"></div>
+      </div>
+      <div class="card">
+        <h4>Sentiment mix by month</h4>
+        <p class="desc">Days classed negative / neutral / positive, centered on neutral.</p>
+        <div id="chMix"></div>
+        <div class="legend">
+          <span class="li"><span class="sw" style="background:var(--neg)"></span>Negative</span>
+          <span class="li"><span class="sw" style="background:var(--neu)"></span>Neutral</span>
+          <span class="li"><span class="sw" style="background:var(--pos)"></span>Positive</span>
+        </div>
+      </div>
+      <div class="card">
+        <h4>Themes by month</h4>
+        <p class="desc">Where each theme concentrated over the summer.</p>
+        <div id="chHeat"></div>
+      </div>
+      <div class="card">
+        <h4>Most written about</h4>
+        <p class="desc">Words appearing in the most entries (common words removed).</p>
+        <div id="chWords"></div>
+      </div>
+      <div class="card">
+        <h4>Entries per month</h4>
+        <p class="desc">Logging volume by calendar month.</p>
+        <div id="chMonths"></div>
+      </div>
+      <div class="card">
+        <h4>Weekday pattern</h4>
+        <p class="desc">Which days of the week get captured most. Hover for average sentiment.</p>
+        <div id="chDow"></div>
+      </div>
+    </div>
+    <div class="card wide insights" style="margin-top:16px">
+      <h4>Insights</h4>
+      <ul id="insights"></ul>
+    </div>
+  </section>
+
+  <footer>
+    Built from the Notion “Story” database · entries are encrypted at rest (AES-256-GCM); the passcode never leaves this browser.
+  </footer>
+</div>
+
+<script src="crypto.js"></script>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
