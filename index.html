@@ -1,119 +1,96 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme: light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex, nofollow" />
 <title>Homework for Life</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✍️</text></svg>" />
-<link rel="stylesheet" href="style.css" />
+
+<link rel="preconnect" href="https://esm.sh" crossorigin />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+
+<!-- Critical CSS: paints the shell before Tailwind/React arrive, so there is no flash -->
+<style>
+  :root {
+    --surface-1: #fcfcfb; --page: #f7f7f5;
+    --ink: #0b0b0b; --ink-2: #52514e; --muted: #8a8880;
+    --grid: #e6e5df; --baseline: #c3c2b7;
+    --pos: #2a78d6; --neg: #e34948; --neu: #c3c2b7;
+    --seq-100: #cde2fb; --seq-200: #9ec5f4; --seq-300: #6da7ec;
+    --seq-400: #3987e5; --seq-550: #1c5cab; --seq-700: #0d366b;
+    --accent: #2a78d6;
+  }
+  html { background: var(--page); }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* ambient gradient mesh */
+  .mesh::before, .mesh::after {
+    content: ""; position: fixed; border-radius: 9999px; pointer-events: none;
+    filter: blur(90px); z-index: 0;
+  }
+  .mesh::before {
+    width: 45vw; height: 45vw; top: -14vw; left: -10vw;
+    background: radial-gradient(circle, rgba(99,102,241,.20), transparent 70%);
+  }
+  .mesh::after {
+    width: 42vw; height: 42vw; top: 32vh; right: -12vw;
+    background: radial-gradient(circle, rgba(217,70,239,.14), transparent 70%);
+  }
+
+  #boot {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px; color: var(--muted); font-size: 13px;
+  }
+  #boot .ring {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 2.5px solid var(--grid); border-top-color: #6366f1;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .axis-t { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .lbl { fill: var(--ink-2); font-size: 11.5px; }
+  .lbl-strong { fill: var(--ink); font-size: 11.5px; font-weight: 600; }
+  .gridline { stroke: var(--grid); stroke-width: 1; }
+  .baseline-s { stroke: var(--baseline); stroke-width: 1; }
+  ::selection { background: rgba(99,102,241,.22); }
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-thumb { background: var(--baseline); border-radius: 99px; border: 3px solid var(--page); }
+</style>
+
+<!-- Tailwind v4 (browser build) + theme config -->
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">
+  @theme {
+    --font-sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --color-ink: var(--ink);
+    --color-ink2: var(--ink-2);
+    --color-muted: var(--muted);
+    --color-surface: var(--surface-1);
+  }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19",
+    "react-dom": "https://esm.sh/react-dom@19",
+    "react-dom/client": "https://esm.sh/react-dom@19/client",
+    "react/jsx-runtime": "https://esm.sh/react@19/jsx-runtime",
+    "framer-motion": "https://esm.sh/framer-motion@11?external=react,react-dom"
+  }
+}
+</script>
 </head>
-<body>
-
-<div id="lock">
-  <form class="lockcard" id="lockForm">
-    <div class="emoji">✍🏼</div>
-    <h2>Homework for Life</h2>
-    <p>This journal is encrypted. Enter the passcode to unlock.</p>
-    <input id="passInput" type="password" autocomplete="current-password" placeholder="Passcode" autofocus />
-    <button type="submit">Unlock</button>
-    <div class="err" id="lockErr"></div>
-  </form>
-</div>
-
-<div class="wrap">
-  <header class="site">
-    <h1>✍🏼 Homework for Life</h1>
-    <span class="sub" id="rangeSub"></span>
-    <span class="spacer"></span>
-    <button class="iconbtn" id="themeBtn" title="Toggle light/dark">◐ Theme</button>
-    <button class="iconbtn" id="lockBtn" style="display:none" title="Lock the journal">🔒 Lock</button>
-  </header>
-
-  <nav class="tabs" role="tablist">
-    <button class="tab" role="tab" aria-selected="true" data-panel="panel-raw">Raw Data</button>
-    <button class="tab" role="tab" aria-selected="false" data-panel="panel-summary">Monthly Summary</button>
-    <button class="tab" role="tab" aria-selected="false" data-panel="panel-analytics">Analytics</button>
-  </nav>
-
-  <section id="panel-raw" class="panel active" role="tabpanel">
-    <div class="toolbar">
-      <input id="rawSearch" type="search" placeholder="Search stories or themes…" />
-      <span class="sval" id="rawCount"></span>
-    </div>
-    <div id="rawList"></div>
-  </section>
-
-  <section id="panel-summary" class="panel" role="tabpanel">
-    <div class="sumbar">
-      <label for="monthSel">Month</label>
-      <select id="monthSel"></select>
-    </div>
-    <div id="sumBody"></div>
-  </section>
-
-  <section id="panel-analytics" class="panel" role="tabpanel">
-    <div class="kpis" id="kpis"></div>
-    <div class="chartgrid">
-      <div class="card wide">
-        <h4>Sentiment over time</h4>
-        <p class="desc">Daily entries (dots) with a 7-day rolling average (line). Hover for the story behind each day.</p>
-        <div id="chSent"></div>
-        <div class="legend">
-          <span class="li"><span class="sw" style="background:var(--pos)"></span>Positive day</span>
-          <span class="li"><span class="sw" style="background:var(--neu)"></span>Neutral day</span>
-          <span class="li"><span class="sw" style="background:var(--neg)"></span>Negative day</span>
-        </div>
-      </div>
-      <div class="card">
-        <h4>Theme frequency</h4>
-        <p class="desc">How often each theme appears across all entries (entries can carry several themes).</p>
-        <div id="chThemes"></div>
-      </div>
-      <div class="card">
-        <h4>Sentiment mix by month</h4>
-        <p class="desc">Days classed negative / neutral / positive, centered on neutral.</p>
-        <div id="chMix"></div>
-        <div class="legend">
-          <span class="li"><span class="sw" style="background:var(--neg)"></span>Negative</span>
-          <span class="li"><span class="sw" style="background:var(--neu)"></span>Neutral</span>
-          <span class="li"><span class="sw" style="background:var(--pos)"></span>Positive</span>
-        </div>
-      </div>
-      <div class="card">
-        <h4>Themes by month</h4>
-        <p class="desc">Where each theme concentrated over the summer.</p>
-        <div id="chHeat"></div>
-      </div>
-      <div class="card">
-        <h4>Most written about</h4>
-        <p class="desc">Words appearing in the most entries (common words removed).</p>
-        <div id="chWords"></div>
-      </div>
-      <div class="card">
-        <h4>Entries per month</h4>
-        <p class="desc">Logging volume by calendar month.</p>
-        <div id="chMonths"></div>
-      </div>
-      <div class="card">
-        <h4>Weekday pattern</h4>
-        <p class="desc">Which days of the week get captured most. Hover for average sentiment.</p>
-        <div id="chDow"></div>
-      </div>
-    </div>
-    <div class="card wide insights" style="margin-top:16px">
-      <h4>Insights</h4>
-      <ul id="insights"></ul>
-    </div>
-  </section>
-
-  <footer>
-    Built from the Notion “Story” database · entries are encrypted at rest (AES-256-GCM); the passcode never leaves this browser.
-  </footer>
-</div>
-
-<script src="crypto.js"></script>
-<script src="charts.js"></script>
-<script src="app.js"></script>
+<body class="mesh">
+  <div id="boot"><div class="ring"></div><div>Loading…</div></div>
+  <div id="root" class="relative z-10"></div>
+  <script type="module" src="app.js"></script>
+  <noscript style="display:block;padding:40px;text-align:center">This journal needs JavaScript enabled.</noscript>
 </body>
 </html>
