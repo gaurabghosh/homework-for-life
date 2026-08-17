@@ -79,8 +79,12 @@ function useTip() {
 }
 function AnimatedNumber({ value, decimals = 0, sign = false, suffix = "", duration = 1.1 }) {
     const [n, setN] = useState(0);
+    const shown = useRef(0); // animate from what's on screen, not from 0, when the range changes
     useEffect(() => {
-        const c = animate(0, value, { duration, ease: EASE, onUpdate: setN });
+        const c = animate(shown.current, value, {
+            duration, ease: EASE,
+            onUpdate: (v) => { shown.current = v; setN(v); },
+        });
         return () => c.stop();
     }, [value, duration]);
     const s = decimals ? n.toFixed(decimals) : Math.round(n).toLocaleString();
@@ -502,13 +506,13 @@ function AnalyticsTab({ data, themeOf }) {
 }
 /* ============================== shell ============================== */
 const TABS = [
-    { id: "raw", label: "Raw Data" },
-    { id: "summary", label: "Monthly Summary" },
     { id: "analytics", label: "Analytics" },
+    { id: "summary", label: "Monthly Summary" },
+    { id: "raw", label: "Raw Data" },
 ];
 function App() {
     const [data, setData] = useState(null);
-    const [tab, setTab] = useState("raw");
+    const [tab, setTab] = useState("analytics");
     const [tip, setTip] = useState(null);
     useEffect(() => {
         document.getElementById("boot")?.remove();
