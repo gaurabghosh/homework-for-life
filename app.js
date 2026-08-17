@@ -157,7 +157,11 @@ function SentimentLine({ points, width = 980, height = 250 }) {
             }
         }
         setFocus(best);
-        setTip({ x: e.clientX + 16, y: e.clientY + 16, title: `${best.full} · ${sentWord(best.y)} ${signed(best.y)}`, body: best.story });
+        setTip({
+            x: e.clientX + 16, y: e.clientY + 16,
+            title: `${best.full} · ${sentWord(best.y)} ${signed(best.y)}`,
+            body: best.themes ? `${best.story}<div style="margin-top:5px;color:var(--muted)">${best.themes}</div>` : best.story,
+        });
     };
     return (_jsxs("svg", { ref: svgRef, viewBox: `0 0 ${width} ${height}`, className: "block w-full h-auto overflow-visible", children: [_jsx("defs", { children: _jsxs("linearGradient", { id: "areaFade", x1: "0", y1: "0", x2: "0", y2: "1", children: [_jsx("stop", { offset: "0%", stopColor: "var(--accent)", stopOpacity: "0.20" }), _jsx("stop", { offset: "100%", stopColor: "var(--accent)", stopOpacity: "0" })] }) }), [-1, -0.5, 0, 0.5, 1].map((t) => (_jsxs("g", { children: [_jsx("line", { x1: m.l, x2: width - m.r, y1: Y(t), y2: Y(t), className: t === 0 ? "baseline-s" : "gridline" }), _jsx("text", { x: m.l - 6, y: Y(t) + 3.5, textAnchor: "end", className: "axis-t", children: t })] }, t))), months.map((md) => (_jsx("text", { x: X(+md), y: height - 8, className: "axis-t", children: md.toLocaleDateString("en-SG", { month: "short" }) }, +md))), _jsx(motion.path, { d: area, fill: "url(#areaFade)", initial: { opacity: 0 }, whileInView: { opacity: 1 }, viewport: { once: true }, transition: { duration: 0.9, delay: 0.5 } }), _jsx(motion.path, { d: path, fill: "none", stroke: "var(--accent)", strokeWidth: "2.25", strokeLinecap: "round", strokeLinejoin: "round", initial: { pathLength: 0 }, whileInView: { pathLength: 1 }, viewport: { once: true }, transition: { duration: 1.5, ease: EASE } }), points.map((p, i) => (_jsx(motion.circle, { cx: X(+p.x), cy: Y(p.y), r: 3.2, fill: sentColor(p.y), stroke: "var(--surface-1)", strokeWidth: "1.5", initial: { opacity: 0, scale: 0 }, whileInView: { opacity: 1, scale: 1 }, viewport: { once: true }, transition: { duration: 0.35, delay: 0.5 + i * 0.008 } }, +p.x))), focus && (_jsxs("g", { children: [_jsx("line", { x1: X(+focus.x), x2: X(+focus.x), y1: m.t, y2: m.t + ih, className: "gridline" }), _jsx("circle", { cx: X(+focus.x), cy: Y(focus.y), r: 6.5, fill: "none", stroke: "var(--accent)", strokeWidth: "2" })] })), _jsx("rect", { x: m.l, y: m.t, width: iw, height: ih, fill: "transparent", onMouseMove: onMove, onMouseLeave: () => { setFocus(null); setTip(null); } })] }));
 }
@@ -215,7 +219,7 @@ function LockScreen({ onUnlocked }) {
         setErr("");
         try {
             const data = await unlock(pass.trim());
-            sessionStorage.setItem("hfl_pass", pass.trim());
+            // The passcode is deliberately NOT persisted: every page load re-prompts.
             onUnlocked(data);
         }
         catch {
@@ -281,31 +285,40 @@ function SummaryTab({ data, themeOf, months }) {
                                 return (_jsxs(motion.div, { initial: { opacity: 0, y: 18 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.45, delay: 0.06 + i * 0.07, ease: EASE }, whileHover: { y: -3 }, className: `${CARD} p-5 transition-shadow hover:shadow-[0_8px_40px_-12px_rgba(99,102,241,.3)]`, children: [_jsxs("h3", { className: "mb-3 flex items-center gap-2 text-[14.5px] font-semibold tracking-tight", children: [_jsx("span", { className: "text-[17px]", children: th.emoji }), " ", th.label] }), _jsx("ul", { className: "m-0 space-y-2 p-0", children: sec.bullets.map((b, j) => (_jsxs(motion.li, { initial: { opacity: 0, x: -6 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.35, delay: 0.14 + i * 0.07 + j * 0.04 }, className: "flex gap-2.5 text-[14px] leading-relaxed text-ink2", children: [_jsx("span", { className: "mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400" }), _jsx("span", { children: b })] }, j))) })] }, sec.theme));
                             }) })] }, ym) })] }));
 }
-/* ---------- sentiment small-multiples, one facet per theme ---------- */
-function ThemeSentimentFacets({ rows, x0, x1, width = 980 }) {
-    // rows: [{ id, label, points:[{x,y,story,full}], avg }]
+/* ---------- what was written about, over time (stacked weekly mix) ---------- */
+const THEME_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300"];
+const OTHER_COLOR = "#8a8880";
+function ThemeStream({ buckets, series, width = 980, height = 260 }) {
+    // buckets: [{ label, start, total, counts:{id:n} }]  series: [{id,label,color}]
     const setTip = useContext(TipCtx);
-    const m = { t: 10, r: 14, b: 26, l: 158 };
-    const rowH = 46, pad = 7;
-    const height = m.t + m.b + rows.length * rowH;
-    const iw = width - m.l - m.r;
-    const X = (v) => m.l + (x1 === x0 ? iw / 2 : ((v - x0) / (x1 - x0)) * iw);
-    const months = [];
-    const d = new Date(x0);
-    d.setDate(1);
-    for (; +d <= x1; d.setMonth(d.getMonth() + 1))
-        if (+d >= x0)
-            months.push(new Date(d));
-    return (_jsxs("svg", { viewBox: `0 0 ${width} ${height}`, className: "block w-full h-auto overflow-visible", children: [rows.map((r, i) => {
-                const top = m.t + i * rowH;
-                const mid = top + rowH / 2;
-                const Y = (v) => mid - (v * (rowH / 2 - pad));
-                return (_jsxs("g", { children: [i > 0 && _jsx("line", { x1: m.l, x2: width - m.r, y1: top, y2: top, className: "gridline" }), _jsx("text", { x: m.l - 10, y: mid - 1, textAnchor: "end", className: "lbl", children: r.label }), _jsxs("text", { x: m.l - 10, y: mid + 11, textAnchor: "end", className: "axis-t", children: [r.points.length, " \u00B7 avg ", signed(r.avg, 2)] }), _jsx("line", { x1: m.l, x2: width - m.r, y1: mid, y2: mid, className: "baseline-s", strokeDasharray: "2 3" }), _jsx(motion.line, { x1: m.l, x2: width - m.r, y1: Y(r.avg), y2: Y(r.avg), stroke: "var(--accent)", strokeWidth: "1.5", strokeOpacity: "0.4", initial: { pathLength: 0 }, whileInView: { pathLength: 1 }, viewport: { once: true }, transition: { duration: 0.7, delay: 0.15 + i * 0.05, ease: EASE } }), r.points.map((p, j) => (_jsx(motion.circle, { cx: X(+p.x), cy: Y(p.y), r: 4, fill: sentColor(p.y), stroke: "var(--surface-1)", strokeWidth: "1.5", initial: { opacity: 0, scale: 0 }, whileInView: { opacity: 1, scale: 1 }, viewport: { once: true }, transition: { duration: 0.3, delay: 0.2 + i * 0.05 + j * 0.012 }, whileHover: { scale: 1.6 }, style: { cursor: "pointer" }, onMouseMove: (e) => setTip({
-                                x: e.clientX + 16, y: e.clientY + 16,
-                                title: `${r.label} · ${p.full} · ${sentWord(p.y)} ${signed(p.y)}`,
-                                body: p.story,
-                            }), onMouseLeave: () => setTip(null) }, +p.x)))] }, r.id));
-            }), months.map((md) => (_jsx("text", { x: X(+md), y: height - 8, className: "axis-t", children: md.toLocaleDateString("en-SG", { month: "short" }) }, +md)))] }));
+    const m = { t: 16, r: 10, b: 30, l: 34 };
+    const iw = width - m.l - m.r, ih = height - m.t - m.b;
+    const max = Math.max(...buckets.map((b) => b.total)) * 1.08 || 1;
+    const bw = Math.min(56, (iw / buckets.length) * 0.74);
+    const gap = 2;
+    return (_jsxs("svg", { viewBox: `0 0 ${width} ${height}`, className: "block w-full h-auto overflow-visible", children: [niceTicks(0, max, 4).map((t) => {
+                const y = m.t + ih - (t / max) * ih;
+                return (_jsxs("g", { children: [_jsx("line", { x1: m.l, x2: width - m.r, y1: y, y2: y, className: "gridline" }), _jsx("text", { x: m.l - 6, y: y + 3.5, textAnchor: "end", className: "axis-t", children: t })] }, t));
+            }), buckets.map((b, i) => {
+                const cx = m.l + (iw / buckets.length) * (i + 0.5);
+                let acc = 0;
+                return (_jsxs("g", { children: [series.map((s, si) => {
+                            const n = b.counts[s.id] || 0;
+                            if (!n)
+                                return null;
+                            const h = (n / max) * ih - gap;
+                            if (h <= 0.5)
+                                return null;
+                            const y = m.t + ih - ((acc + n) / max) * ih;
+                            acc += n;
+                            const isTop = acc === b.total;
+                            return (_jsxs("g", { children: [_jsx(motion.path, { d: isTop ? roundTop(cx - bw / 2, y, bw, h, 5) : `M${cx - bw / 2},${y} h${bw} v${h} h${-bw} Z`, fill: s.color, initial: { opacity: 0, scaleY: 0 }, whileInView: { opacity: 1, scaleY: 1 }, viewport: { once: true }, style: { transformOrigin: `${cx}px ${m.t + ih}px` }, transition: { duration: 0.55, delay: i * 0.045 + si * 0.02, ease: EASE }, onMouseMove: (e) => setTip({
+                                            x: e.clientX + 16, y: e.clientY + 16,
+                                            title: `Week of ${b.label}`,
+                                            body: `<b>${s.label}</b> — ${n} ${n === 1 ? "entry" : "entries"} of ${b.total}`,
+                                        }), onMouseLeave: () => setTip(null) }), h >= 15 && (_jsx("text", { x: cx, y: y + h / 2 + 4, textAnchor: "middle", className: "axis-t", style: { fill: "#fff", fontWeight: 600 }, pointerEvents: "none", children: n }))] }, s.id));
+                        }), (buckets.length <= 13 || i % 2 === 0) && (_jsx("text", { x: cx, y: height - 10, textAnchor: "middle", className: "axis-t", children: b.label }))] }, b.label));
+            }), _jsx("line", { x1: m.l, x2: width - m.r, y1: m.t + ih, y2: m.t + ih, className: "baseline-s" })] }));
 }
 /* ---------- date range control ---------- */
 function RangePicker({ presets, value, onChange, from, to, bounds }) {
@@ -402,7 +415,11 @@ function AnalyticsTab({ data, themeOf }) {
     }, [entries]);
     const themesSorted = useMemo(() => Object.entries(stats.themeCount).sort((a, b) => b[1] - a[1]), [stats]);
     const top = themesSorted[0];
-    const points = useMemo(() => entries.map((e) => ({ x: new Date(e.date + "T00:00:00"), y: e.sentiment, story: e.story, full: dayParts(e.date).full })), [entries]);
+    const points = useMemo(() => entries.map((e) => ({
+        x: new Date(e.date + "T00:00:00"), y: e.sentiment, story: e.story,
+        full: dayParts(e.date).full,
+        themes: e.themes.map((t) => `${themeOf(t).emoji} ${themeOf(t).label}`).join(" · "),
+    })), [entries, themeOf]);
     const words = useMemo(() => {
         const stop = new Set(("the a an and or but with for from to of in on at is was were are be been got get had has have do did very much more most this that these those my me i we our us he she her his they them their it its as by after before about into over under again just also so not no lol haha ha phew sigh finally since while when where which who whom what because though despite around out up down off then than too still ever never both all some any few couple another other same day days month week whole time first last next new good bad big small long short high low today yesterday lot bit way back home going went come came").split(/\s+/));
         const freq = {};
@@ -434,26 +451,42 @@ function AnalyticsTab({ data, themeOf }) {
         }));
     }, [entries]);
     const topIds = themesSorted.slice(0, 8).map(([id]) => id);
-    // one sentiment facet per theme, sorted by how much was written about it
-    const facets = useMemo(() => themesSorted.map(([id, n]) => {
-        const pts = entries
-            .filter((e) => e.themes.includes(id))
-            .map((e) => ({ x: new Date(e.date + "T00:00:00"), y: e.sentiment, story: e.story, full: dayParts(e.date).full }));
-        return {
-            id,
-            label: `${themeOf(id).emoji} ${themeOf(id).label}`,
-            points: pts,
-            avg: pts.reduce((a, p) => a + p.y, 0) / (pts.length || 1),
+    // weekly theme mix: top 6 themes keep their own colour, the tail folds into "Other"
+    const stream = useMemo(() => {
+        const top = themesSorted.slice(0, 6).map(([id]) => id);
+        const series = top.map((id, i) => ({ id, label: themeOf(id).label, color: THEME_COLORS[i] }));
+        const hasOther = themesSorted.length > 6;
+        if (hasOther)
+            series.push({ id: "__other", label: "Other themes", color: OTHER_COLOR });
+        const weekStart = (iso) => {
+            const d = new Date(iso + "T00:00:00");
+            d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // back to Monday
+            return d;
         };
-    }), [themesSorted, entries, themeOf]);
-    const xDomain = useMemo(() => {
-        const xs = entries.map((e) => +new Date(e.date + "T00:00:00"));
-        return [Math.min(...xs), Math.max(...xs)];
-    }, [entries]);
+        const map = new Map();
+        for (const e of entries) {
+            const ws = weekStart(e.date);
+            const key = ws.toISOString().slice(0, 10);
+            if (!map.has(key))
+                map.set(key, {
+                    start: ws,
+                    label: ws.toLocaleDateString("en-SG", { day: "numeric", month: "short" }),
+                    counts: {}, total: 0,
+                });
+            const b = map.get(key);
+            // one entry contributes once per distinct bucket-series it belongs to
+            const hit = new Set(e.themes.map((t) => (top.includes(t) ? t : "__other")));
+            for (const k of hit) {
+                b.counts[k] = (b.counts[k] || 0) + 1;
+                b.total++;
+            }
+        }
+        return { series, buckets: [...map.values()].sort((a, b) => a.start - b.start) };
+    }, [entries, themesSorted, themeOf]);
     if (!entries.length) {
         return (_jsxs("div", { children: [rangeBar, _jsx("div", { className: `${CARD} py-20 text-center text-muted`, children: "No entries in this date range." })] }));
     }
-    return (_jsxs("div", { children: [rangeBar, _jsxs("div", { className: "mb-4 grid grid-cols-[repeat(auto-fit,minmax(152px,1fr))] gap-3", children: [_jsx(Kpi, { i: 0, k: "Entries", v: stats.total, s: `over ${stats.span} days` }), _jsx(Kpi, { i: 1, k: "Coverage", v: Math.round((stats.total / stats.span) * 100), suffix: "%", s: "of days captured" }), _jsx(Kpi, { i: 2, k: "Current streak", v: stats.cur, s: `longest ${stats.best} days` }), _jsx(Kpi, { i: 3, k: "Avg sentiment", v: stats.avgS, decimals: 2, sign: true, accent: sentColor(stats.avgS), s: "on a \u22121 \u2026 +1 scale" }), _jsx(Kpi, { i: 4, k: "Top theme", text: `${themeOf(top[0]).emoji} ${themeOf(top[0]).label}`, s: `${top[1]} of ${stats.total} entries (${Math.round((top[1] / stats.total) * 100)}%)` }), _jsx(Kpi, { i: 5, k: "Words written", v: stats.words, s: `≈ ${Math.round(stats.words / stats.total)} per entry` })] }), _jsxs("div", { className: "grid grid-cols-[repeat(auto-fit,minmax(min(460px,100%),1fr))] gap-4", children: [_jsx(ChartCard, { className: "col-span-full", title: "Sentiment over time", desc: "Daily entries (dots) with a 7-day rolling average (line). Hover for the story behind each day.", legend: _jsxs(_Fragment, { children: [_jsx(Swatch, { color: "var(--pos)", label: "Positive day" }), _jsx(Swatch, { color: "var(--neu)", label: "Neutral day" }), _jsx(Swatch, { color: "var(--neg)", label: "Negative day" })] }), children: _jsx(SentimentLine, { points: points }) }), _jsx(ChartCard, { className: "col-span-full", title: "Sentiment by theme", desc: "Every entry plotted on its theme's own track, sharing one timeline. Hover any dot to read that day's note. The faint blue line is the theme's average.", legend: _jsxs(_Fragment, { children: [_jsx(Swatch, { color: "var(--pos)", label: "Positive entry" }), _jsx(Swatch, { color: "var(--neu)", label: "Neutral entry" }), _jsx(Swatch, { color: "var(--neg)", label: "Negative entry" })] }), children: _jsx(ThemeSentimentFacets, { rows: facets, x0: xDomain[0], x1: xDomain[1] }) }), _jsx(ChartCard, { title: "Theme frequency", desc: "How often each theme appears (entries can carry several themes).", children: _jsx(HBars, { data: themesSorted.map(([id, n]) => ({
+    return (_jsxs("div", { children: [rangeBar, _jsxs("div", { className: "mb-4 grid grid-cols-[repeat(auto-fit,minmax(152px,1fr))] gap-3", children: [_jsx(Kpi, { i: 0, k: "Entries", v: stats.total, s: `over ${stats.span} days` }), _jsx(Kpi, { i: 1, k: "Coverage", v: Math.round((stats.total / stats.span) * 100), suffix: "%", s: "of days captured" }), _jsx(Kpi, { i: 2, k: "Current streak", v: stats.cur, s: `longest ${stats.best} days` }), _jsx(Kpi, { i: 3, k: "Avg sentiment", v: stats.avgS, decimals: 2, sign: true, accent: sentColor(stats.avgS), s: "on a \u22121 \u2026 +1 scale" }), _jsx(Kpi, { i: 4, k: "Top theme", text: `${themeOf(top[0]).emoji} ${themeOf(top[0]).label}`, s: `${top[1]} of ${stats.total} entries (${Math.round((top[1] / stats.total) * 100)}%)` }), _jsx(Kpi, { i: 5, k: "Words written", v: stats.words, s: `≈ ${Math.round(stats.words / stats.total)} per entry` })] }), _jsxs("div", { className: "grid grid-cols-[repeat(auto-fit,minmax(min(460px,100%),1fr))] gap-4", children: [_jsx(ChartCard, { className: "col-span-full", title: "Sentiment over time", desc: "Daily entries (dots) with a 7-day rolling average (line). Hover for the story behind each day.", legend: _jsxs(_Fragment, { children: [_jsx(Swatch, { color: "var(--pos)", label: "Positive day" }), _jsx(Swatch, { color: "var(--neu)", label: "Neutral day" }), _jsx(Swatch, { color: "var(--neg)", label: "Negative day" })] }), children: _jsx(SentimentLine, { points: points }) }), _jsx(ChartCard, { className: "col-span-full", title: "What I was writing about", desc: "Theme mix week by week \u2014 the taller the block, the more that topic dominated. Hover any block for the detail.", legend: stream.series.map((s) => _jsx(Swatch, { color: s.color, label: s.label }, s.id)), children: _jsx(ThemeStream, { buckets: stream.buckets, series: stream.series }) }), _jsx(ChartCard, { title: "Theme frequency", desc: "How often each theme appears (entries can carry several themes).", children: _jsx(HBars, { data: themesSorted.map(([id, n]) => ({
                                 label: `${themeOf(id).emoji} ${themeOf(id).label}`,
                                 value: n,
                                 tip: `<b>${themeOf(id).label}</b><br>${n} entries (${Math.round((n / stats.total) * 100)}% of all)`,
@@ -479,9 +512,8 @@ function App() {
     const [tip, setTip] = useState(null);
     useEffect(() => {
         document.getElementById("boot")?.remove();
-        const saved = sessionStorage.getItem("hfl_pass");
-        if (saved)
-            unlock(saved).then(setData).catch(() => sessionStorage.removeItem("hfl_pass"));
+        // Clear any passcode cached by an earlier build so no tab stays silently unlocked.
+        sessionStorage.removeItem("hfl_pass");
     }, []);
     const themeOf = useCallback((id) => data?.themes.find((t) => t.id === id) || { label: id, emoji: "" }, [data]);
     const months = useMemo(() => {
@@ -498,6 +530,6 @@ function App() {
     }
     const r = data.meta.range;
     const sub = `${new Date(r.start).toLocaleDateString("en-SG", { day: "numeric", month: "short" })} – ${new Date(r.end).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })} · ${data.entries.length} moments`;
-    return (_jsxs(TipCtx.Provider, { value: setTip, children: [_jsx(Tooltip, { tip: tip }), _jsxs("div", { className: "mx-auto max-w-[1120px] px-5 pb-24", children: [_jsxs(motion.header, { initial: { opacity: 0, y: -12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5, ease: EASE }, className: "flex flex-wrap items-center gap-3 pt-7 pb-2", children: [_jsx("div", { className: `flex h-9 w-9 items-center justify-center rounded-xl ${GRAD} text-[17px] shadow-md shadow-violet-500/25`, children: "\u270D\uFE0F" }), _jsx("h1", { className: "m-0 text-[21px] font-bold tracking-tight", children: "Homework for Life" }), _jsx("span", { className: "text-[13px] text-muted", children: sub }), _jsx("div", { className: "flex-1" }), _jsx(motion.button, { whileHover: { scale: 1.04 }, whileTap: { scale: 0.96 }, onClick: () => { sessionStorage.removeItem("hfl_pass"); location.reload(); }, className: `${CARD} px-3 py-1.5 text-[13px] text-ink2`, title: "Lock the journal", children: "\uD83D\uDD12 Lock" })] }), _jsx(motion.nav, { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: 0.1 }, className: "sticky top-0 z-20 -mx-5 mb-6 flex gap-1 border-b border-black/[0.07] px-5 pt-2\n                     backdrop-blur-xl", style: { background: "color-mix(in srgb, var(--page) 82%, transparent)" }, children: _jsx(LayoutGroup, { id: "tabs", children: TABS.map((t) => (_jsxs("button", { onClick: () => setTab(t.id), className: `relative px-4 pb-3 pt-2 text-[14px] transition-colors ${tab === t.id ? "font-semibold text-ink" : "text-ink2 hover:text-ink"}`, children: [t.label, tab === t.id && (_jsx(motion.span, { layoutId: "tabline", transition: SPRING, className: `absolute inset-x-2 -bottom-px h-[2.5px] rounded-full ${GRAD}` }))] }, t.id))) }) }), _jsx(AnimatePresence, { mode: "wait", children: _jsxs(motion.main, { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.3, ease: EASE }, children: [tab === "raw" && _jsx(RawTab, { data: data, themeOf: themeOf, months: months, monthKeys: monthKeys }), tab === "summary" && _jsx(SummaryTab, { data: data, themeOf: themeOf, months: months }), tab === "analytics" && _jsx(AnalyticsTab, { data: data, themeOf: themeOf })] }, tab) }), _jsx("footer", { className: "mt-14 border-t border-black/[0.07] pt-4 text-[12.5px] text-muted", children: "Built from the Notion \u201CStory\u201D database \u00B7 entries are encrypted at rest (AES-256-GCM); the passcode never leaves this browser." })] })] }));
+    return (_jsxs(TipCtx.Provider, { value: setTip, children: [_jsx(Tooltip, { tip: tip }), _jsxs("div", { className: "mx-auto max-w-[1120px] px-5 pb-24", children: [_jsxs(motion.header, { initial: { opacity: 0, y: -12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5, ease: EASE }, className: "flex flex-wrap items-center gap-3 pt-7 pb-2", children: [_jsx("div", { className: `flex h-9 w-9 items-center justify-center rounded-xl ${GRAD} text-[17px] shadow-md shadow-violet-500/25`, children: "\u270D\uFE0F" }), _jsx("h1", { className: "m-0 text-[21px] font-bold tracking-tight", children: "Homework for Life" }), _jsx("span", { className: "text-[13px] text-muted", children: sub }), _jsx("div", { className: "flex-1" }), _jsx(motion.button, { whileHover: { scale: 1.04 }, whileTap: { scale: 0.96 }, onClick: () => { sessionStorage.clear(); location.reload(); }, className: `${CARD} px-3 py-1.5 text-[13px] text-ink2`, title: "Lock the journal", children: "\uD83D\uDD12 Lock" })] }), _jsx(motion.nav, { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: 0.1 }, className: "sticky top-0 z-20 -mx-5 mb-6 flex gap-1 border-b border-black/[0.07] px-5 pt-2\n                     backdrop-blur-xl", style: { background: "color-mix(in srgb, var(--page) 82%, transparent)" }, children: _jsx(LayoutGroup, { id: "tabs", children: TABS.map((t) => (_jsxs("button", { onClick: () => setTab(t.id), className: `relative px-4 pb-3 pt-2 text-[14px] transition-colors ${tab === t.id ? "font-semibold text-ink" : "text-ink2 hover:text-ink"}`, children: [t.label, tab === t.id && (_jsx(motion.span, { layoutId: "tabline", transition: SPRING, className: `absolute inset-x-2 -bottom-px h-[2.5px] rounded-full ${GRAD}` }))] }, t.id))) }) }), _jsx(AnimatePresence, { mode: "wait", children: _jsxs(motion.main, { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.3, ease: EASE }, children: [tab === "raw" && _jsx(RawTab, { data: data, themeOf: themeOf, months: months, monthKeys: monthKeys }), tab === "summary" && _jsx(SummaryTab, { data: data, themeOf: themeOf, months: months }), tab === "analytics" && _jsx(AnalyticsTab, { data: data, themeOf: themeOf })] }, tab) }), _jsx("footer", { className: "mt-14 border-t border-black/[0.07] pt-4 text-[12.5px] text-muted", children: "Built from the Notion \u201CStory\u201D database \u00B7 entries are encrypted at rest (AES-256-GCM); the passcode never leaves this browser." })] })] }));
 }
 createRoot(document.getElementById("root")).render(_jsx(App, {}));
